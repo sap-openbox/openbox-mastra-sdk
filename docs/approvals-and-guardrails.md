@@ -106,6 +106,8 @@ When a tool or step executes inside a workflow context and OpenBox returns `requ
 
 This is the preferred path for long-running human review.
 
+A tool that an agent calls is not a workflow step, even when the agent runs inside one, so it uses the inline path below.
+
 ### Non-Workflow Activity Execution
 
 When there is no workflow suspend context available, the SDK polls approval inline.
@@ -127,16 +129,16 @@ While polling approval status:
 - expired approval throws `ApprovalExpiredError`
 - missing or temporary approval API failures retry with backoff until timeout
 
-## Output-Time Approval
+## Approval After An Activity Ran
 
-Approval is not limited to `ActivityStarted`.
+Only `ActivityStarted` can gate an activity. If `ActivityCompleted` returns `require_approval`, the tool or step has already run, so the SDK logs a warning, keeps the output and continues. It does not suspend or wait. This matches the other OpenBox SDKs.
 
-If `ActivityCompleted` returns `require_approval`, the SDK can:
+To put a tool or step behind a human approval, match the rule on `event_type == "ActivityStarted"`.
 
-- suspend the workflow after execution and before returning output
-- or poll inline when no workflow suspension context exists
+## Writing Rules For Mastra Activities
 
-This is useful when policy wants to review actual output, not just the requested action.
+- `activity_type` is the camelCase form of the tool or step id: `refund_order` and `refund-order` both become `refundOrder` (see [Event Model](./event-model.md)). A rule on the original id will not match.
+- On `ActivityStarted`, `activity_input` is the tool or step input object, not a list. Rules written for list-shaped input (`activity_input[_].<field>`) do not match Mastra tools.
 
 ## Agents And Approval
 

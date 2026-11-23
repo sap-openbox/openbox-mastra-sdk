@@ -16,7 +16,7 @@ This SDK emits OpenBox governance events and hook-triggered telemetry payloads. 
 | `WorkflowFailed` | wrapped workflows and agents | failure reporting |
 | `SignalReceived` | workflow resume and agent lifecycle signals | resume handling and agent-specific payloads |
 | `ActivityStarted` | wrapped tools and wrapped non-tool workflow steps | input-time governance and approvals |
-| `ActivityCompleted` | wrapped tools and wrapped non-tool workflow steps | output-time governance and approvals |
+| `ActivityCompleted` | wrapped tools and wrapped non-tool workflow steps | output-time governance and guardrails; an approval here is logged, not waited on |
 
 All evaluate payloads also include:
 
