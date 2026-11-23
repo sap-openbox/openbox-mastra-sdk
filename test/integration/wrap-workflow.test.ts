@@ -118,6 +118,58 @@ describe("wrapWorkflow", () => {
     });
   });
 
+  it("reports a run once when createRun is called again with the same runId", async () => {
+    const server = await startOpenBoxServer({
+      evaluate() {
+        return { verdict: "allow" };
+      }
+    });
+    const config = parseOpenBoxConfig({
+      apiKey: "obx_test_workflow",
+      apiUrl: server.url,
+      validate: false
+    });
+    const client = new OpenBoxClient({
+      apiKey: config.apiKey,
+      apiUrl: config.apiUrl,
+      onApiError: config.onApiError,
+      timeoutSeconds: config.governanceTimeout
+    });
+    const step = createStep({
+      execute: async ({ inputData }) => ({ result: inputData.value.toUpperCase() }),
+      id: "cached-run-step",
+      inputSchema: z.object({ value: z.string() }),
+      outputSchema: z.object({ result: z.string() })
+    });
+    const workflow = wrapWorkflow(
+      createWorkflow({
+        id: "cached-run-workflow",
+        inputSchema: z.object({ value: z.string() }),
+        outputSchema: z.object({ result: z.string() })
+      })
+        .then(step)
+        .commit(),
+      { client, config, spanProcessor: new OpenBoxSpanProcessor() }
+    );
+    const mastra = new Mastra({
+      storage: new InMemoryStore(),
+      workflows: { cachedRun: workflow }
+    });
+    // Mastra's server creates the run first, then looks it up again by id to start it.
+    const created = await mastra.getWorkflow("cachedRun").createRun();
+    const run = await mastra.getWorkflow("cachedRun").createRun({ runId: created.runId });
+    const result = await run.start({ inputData: { value: "hello" } });
+
+    await server.close();
+
+    expect(result.status).toBe("success");
+    expect(
+      server.requests
+        .filter(request => request.pathname === "/api/v1/governance/evaluate")
+        .map(request => request.body.event_type)
+    ).toEqual(["WorkflowStarted", "ActivityStarted", "ActivityCompleted", "WorkflowCompleted"]);
+  });
+
   it("attaches inherited and step-level metadata to governed workflow events", async () => {
     const server = await startOpenBoxServer({
       evaluate() {

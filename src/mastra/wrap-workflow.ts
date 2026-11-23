@@ -34,6 +34,7 @@ import type { WrapToolOptions } from "./wrap-tool.js";
 
 const OPENBOX_WRAPPED_WORKFLOW = Symbol.for("openbox.mastra.wrapWorkflow");
 const OPENBOX_WRAPPED_STEP = Symbol.for("openbox.mastra.wrapWorkflow.step");
+const OPENBOX_WRAPPED_RUN = Symbol.for("openbox.mastra.wrapWorkflow.run");
 
 type WorkflowStep = Step<string, any, any, any, any, any, any, any> & {
   component?: string | undefined;
@@ -132,7 +133,20 @@ function wrapRun(
   workflow: AnyWorkflow & { id: string },
   options: WrapToolOptions
 ): WorkflowRunLike {
-  const baseRun = run as WorkflowRunLike & Record<string, unknown>;
+  const baseRun = run as WorkflowRunLike & Record<PropertyKey, unknown>;
+
+  // Mastra caches runs by id, so `createRun({ runId })` can hand back a run
+  // that is already wrapped. Wrapping it again would emit every workflow
+  // lifecycle event twice, and Core rejects the second WorkflowCompleted.
+  if (baseRun[OPENBOX_WRAPPED_RUN]) {
+    return run;
+  }
+
+  Object.defineProperty(baseRun, OPENBOX_WRAPPED_RUN, {
+    enumerable: false,
+    value: true
+  });
+
   const originalStart = run.start.bind(run);
   const originalResume = run.resume.bind(run);
   const originalStream = run.stream.bind(run);

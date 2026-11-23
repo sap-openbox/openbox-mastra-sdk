@@ -33,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   activity's output is kept — the same behavior as the other OpenBox SDKs.
   Start-stage approvals are unchanged.
 
+### Fixed
+
+- **A workflow run is reported once when Mastra hands back a cached run.**
+  `createRun({ runId })` returns the same run object for an existing id (Mastra's
+  server does this between `create-run` and `start`), and each call wrapped it
+  again. The run then sent `WorkflowStarted` and `WorkflowCompleted` twice; Core
+  rejected the second completion with "Session is no longer active" and the run
+  ended as failed.
+
 ## [1.0.0] - 2026-07-20
 
 First stable release. Mastra's governance internals now delegate to the shared
